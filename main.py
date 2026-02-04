@@ -40,9 +40,9 @@ def step(grid: Grid) -> Grid:
             white_neighbors = count_white_neighbors(grid, x, y)
             cell = row[x]
             if cell == 0:
-                new_row[x] = 1 if white_neighbors >= 2 else 0
+                new_row[x] = 1 if white_neighbors == 3 else 0
             else:
-                new_row[x] = 0 if white_neighbors <= 1 else 1
+                new_row[x] = 0 if (white_neighbors <= 1 or white_neighbors > 3)  else 1
     return new_grid
 
 
