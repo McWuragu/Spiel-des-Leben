@@ -48,10 +48,6 @@ def step(grid: Grid) -> Grid:
     return new_grid
 
 
-def count_white_cells(grid: Grid) -> int:
-    return sum(sum(row) for row in grid)
-
-
 class TkVisualizer:
     def __init__(self, size: int, window_size: int) -> None:
         self.grid_size = size
@@ -130,22 +126,16 @@ def run(
     seed: int | None,
     steps: int | None,
     white_ratio: float,
-    visualize: bool,
     window_size: int,
 ) -> None:
     grid = create_grid(size, seed, white_ratio)
     generation = 0
-    visualizer = TkVisualizer(size, window_size) if visualize else None
+    visualizer = TkVisualizer(size, window_size)
     delay_seconds = max(0, delay_ms) / 1000
     try:
-        while (steps is None or generation < steps) and (
-            visualizer is None or visualizer.running
-        ):
-            white_cells = count_white_cells(grid)
-            black_cells = size * size - white_cells
-            if visualizer is not None:
-                visualizer.update(grid)
-            print(f"Generation {generation}: white={white_cells} black={black_cells}", flush=True)
+        while (steps is None or generation < steps) and visualizer.running:
+            visualizer.update(grid)
+            print(".", end="", flush=True)
             time.sleep(delay_seconds)
             grid = step(grid)
             generation += 1
@@ -178,11 +168,6 @@ def parse_args() -> argparse.Namespace:
         help="Startanteil weißer Zellen (0.0 bis 1.0)",
     )
     parser.add_argument(
-        "--visualize",
-        action="store_true",
-        help="Grafische Visualisierung der Zellen",
-    )
-    parser.add_argument(
         "--window-size",
         type=int,
         default=800,
@@ -199,7 +184,6 @@ def main() -> None:
         args.seed,
         args.steps,
         args.white_ratio,
-        args.visualize,
         args.window_size,
     )
 
