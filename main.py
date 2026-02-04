@@ -6,10 +6,14 @@ from typing import List
 Grid = List[bytearray]
 
 
-def create_grid(size: int, seed: int | None = None) -> Grid:
+def create_grid(size: int, seed: int | None = None, white_ratio: float = 0.5) -> Grid:
     if seed is not None:
         random.seed(seed)
-    return [bytearray(random.getrandbits(1) for _ in range(size)) for _ in range(size)]
+    threshold = max(0.0, min(1.0, white_ratio))
+    return [
+        bytearray(1 if random.random() < threshold else 0 for _ in range(size))
+        for _ in range(size)
+    ]
 
 
 def count_white_neighbors(grid: Grid, x: int, y: int) -> int:
@@ -70,10 +74,11 @@ def run(
     delay: float,
     seed: int | None,
     steps: int | None,
+    white_ratio: float,
     visualize: bool,
     view_size: int,
 ) -> None:
-    grid = create_grid(size, seed)
+    grid = create_grid(size, seed, white_ratio)
     generation = 0
     try:
         while steps is None or generation < steps:
@@ -110,6 +115,12 @@ def parse_args() -> argparse.Namespace:
         help="Anzahl der Schritte (Standard: unendlich)",
     )
     parser.add_argument(
+        "--white-ratio",
+        type=float,
+        default=0.5,
+        help="Startanteil weißer Zellen (0.0 bis 1.0)",
+    )
+    parser.add_argument(
         "--visualize",
         action="store_true",
         help="ASCII-Visualisierung der Zellen",
@@ -125,7 +136,15 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    run(args.size, args.delay, args.seed, args.steps, args.visualize, args.view_size)
+    run(
+        args.size,
+        args.delay,
+        args.seed,
+        args.steps,
+        args.white_ratio,
+        args.visualize,
+        args.view_size,
+    )
 
 
 if __name__ == "__main__":
