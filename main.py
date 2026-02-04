@@ -3,6 +3,8 @@ import random
 import time
 from typing import List
 
+import tkinter as tk
+
 Grid = List[bytearray]
 
 
@@ -40,9 +42,9 @@ def step(grid: Grid) -> Grid:
             white_neighbors = count_white_neighbors(grid, x, y)
             cell = row[x]
             if cell == 0:
-                new_row[x] = 1 if white_neighbors >= 2 else 0
+                new_row[x] = 1 if white_neighbors == 3 else 0
             else:
-                new_row[x] = 0 if white_neighbors <= 1 else 1
+                new_row[x] = 0 if white_neighbors <= 1 or white_neighbors > 3 else 1
     return new_grid
 
 
@@ -50,23 +52,78 @@ def count_white_cells(grid: Grid) -> int:
     return sum(sum(row) for row in grid)
 
 
-def render_ascii(grid: Grid, view_size: int) -> str:
-    size = len(grid)
-    view_size = max(1, min(view_size, size))
-    step = max(1, size // view_size)
-    lines: list[str] = []
-    for y in range(0, size, step):
-        row_chars = []
-        for x in range(0, size, step):
-            white_count = 0
-            total = 0
-            for yy in range(y, min(y + step, size)):
-                for xx in range(x, min(x + step, size)):
-                    white_count += grid[yy][xx]
-                    total += 1
-            row_chars.append("⬜" if white_count * 2 >= total else "⬛")
-        lines.append("".join(row_chars))
-    return "\n".join(lines)
+class TkVisualizer:
+    def __init__(self, size: int, window_size: int) -> None:
+        self.grid_size = size
+        self.window_size = max(100, window_size)
+        self.root = tk.Tk()
+        self.root.title("Spiel des Lebens")
+        self.root.geometry(f"{self.window_size}x{self.window_size}")
+        self.root.protocol("WM_DELETE_WINDOW", self.close)
+        self.running = True
+
+        self.canvas = tk.Canvas(self.root, highlightthickness=0, bg="black")
+        self.canvas.pack(fill="both", expand=True)
+        self.image: tk.PhotoImage | None = None
+        self.image_id: int | None = None
+        self.display_cells = 0
+        self.ranges: list[tuple[int, int]] = []
+        self._configure(self.window_size, self.window_size)
+        self.root.bind("<Configure>", self._on_configure)
+
+    def _on_configure(self, event: tk.Event) -> None:
+        if event.width <= 1 or event.height <= 1:
+            return
+        self._configure(event.width, event.height)
+
+    def _configure(self, width: int, height: int) -> None:
+        canvas_size = max(1, min(width, height))
+        display_cells = min(self.grid_size, canvas_size)
+        if display_cells == self.display_cells:
+            return
+        self.display_cells = display_cells
+        ratio = self.grid_size / display_cells
+        ranges: list[tuple[int, int]] = []
+        for index in range(display_cells):
+            start = int(index * ratio)
+            end = int((index + 1) * ratio)
+            if end <= start:
+                end = min(start + 1, self.grid_size)
+            ranges.append((start, end))
+        self.ranges = ranges
+        self.image = tk.PhotoImage(width=display_cells, height=display_cells)
+        if self.image_id is None:
+            self.image_id = self.canvas.create_image(0, 0, anchor="nw", image=self.image)
+        else:
+            self.canvas.itemconfigure(self.image_id, image=self.image)
+        self.canvas.config(width=display_cells, height=display_cells)
+
+    def close(self) -> None:
+        self.running = False
+        self.root.destroy()
+
+    def update(self, grid: Grid) -> None:
+        if not self.running or self.image is None:
+            return
+        size = self.grid_size
+        display_cells = self.display_cells
+        ranges = self.ranges
+        for y in range(display_cells):
+            y_start, y_end = ranges[y]
+            row_colors = []
+            for x in range(display_cells):
+                x_start, x_end = ranges[x]
+                white_count = 0
+                total = 0
+                for yy in range(y_start, y_end):
+                    row = grid[yy]
+                    for xx in range(x_start, x_end):
+                        white_count += row[xx]
+                        total += 1
+                row_colors.append("#ffffff" if white_count * 2 >= total else "#000000")
+            self.image.put("{" + " ".join(row_colors) + "}", to=(0, y))
+        self.root.update_idletasks()
+        self.root.update()
 
 
 def run(
@@ -76,18 +133,19 @@ def run(
     steps: int | None,
     white_ratio: float,
     visualize: bool,
-    view_size: int,
+    window_size: int,
 ) -> None:
     grid = create_grid(size, seed, white_ratio)
     generation = 0
+    visualizer = TkVisualizer(size, window_size) if visualize else None
     try:
-        while steps is None or generation < steps:
+        while (steps is None or generation < steps) and (
+            visualizer is None or visualizer.running
+        ):
             white_cells = count_white_cells(grid)
             black_cells = size * size - white_cells
-            if visualize:
-                print("\x1b[2J\x1b[H", end="")
-                print(render_ascii(grid, view_size))
-                print()
+            if visualizer is not None:
+                visualizer.update(grid)
             print(f"Generation {generation}: white={white_cells} black={black_cells}", flush=True)
             time.sleep(delay)
             grid = step(grid)
@@ -123,13 +181,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--visualize",
         action="store_true",
-        help="ASCII-Visualisierung der Zellen",
+        help="Grafische Visualisierung der Zellen",
     )
     parser.add_argument(
-        "--view-size",
+        "--window-size",
         type=int,
-        default=64,
-        help="Größe der ASCII-Ansicht (z.B. 64 zeigt 64x64)",
+        default=800,
+        help="Fenstergröße der Visualisierung in Pixeln",
     )
     return parser.parse_args()
 
@@ -143,7 +201,7 @@ def main() -> None:
         args.steps,
         args.white_ratio,
         args.visualize,
-        args.view_size,
+        args.window_size,
     )
 
 
