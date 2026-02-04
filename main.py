@@ -66,7 +66,7 @@ class TkVisualizer:
         self.canvas.pack(fill="both", expand=True)
         self.image: tk.PhotoImage | None = None
         self.image_id: int | None = None
-        self.display_cells = 0
+        self.display_pixels = 0
         self.ranges: list[tuple[int, int]] = []
         self._configure(self.window_size, self.window_size)
         self.root.bind("<Configure>", self._on_configure)
@@ -78,25 +78,24 @@ class TkVisualizer:
 
     def _configure(self, width: int, height: int) -> None:
         canvas_size = max(1, min(width, height))
-        display_cells = min(self.grid_size, canvas_size)
-        if display_cells == self.display_cells:
+        if canvas_size == self.display_pixels:
             return
-        self.display_cells = display_cells
-        ratio = self.grid_size / display_cells
+        self.display_pixels = canvas_size
+        ratio = self.grid_size / canvas_size
         ranges: list[tuple[int, int]] = []
-        for index in range(display_cells):
+        for index in range(canvas_size):
             start = int(index * ratio)
             end = int((index + 1) * ratio)
             if end <= start:
                 end = min(start + 1, self.grid_size)
             ranges.append((start, end))
         self.ranges = ranges
-        self.image = tk.PhotoImage(width=display_cells, height=display_cells)
+        self.image = tk.PhotoImage(width=canvas_size, height=canvas_size)
         if self.image_id is None:
             self.image_id = self.canvas.create_image(0, 0, anchor="nw", image=self.image)
         else:
             self.canvas.itemconfigure(self.image_id, image=self.image)
-        self.canvas.config(width=display_cells, height=display_cells)
+        self.canvas.config(width=canvas_size, height=canvas_size)
 
     def close(self) -> None:
         self.running = False
@@ -105,13 +104,12 @@ class TkVisualizer:
     def update(self, grid: Grid) -> None:
         if not self.running or self.image is None:
             return
-        size = self.grid_size
-        display_cells = self.display_cells
+        display_pixels = self.display_pixels
         ranges = self.ranges
-        for y in range(display_cells):
+        for y in range(display_pixels):
             y_start, y_end = ranges[y]
             row_colors = []
-            for x in range(display_cells):
+            for x in range(display_pixels):
                 x_start, x_end = ranges[x]
                 white_count = 0
                 total = 0
