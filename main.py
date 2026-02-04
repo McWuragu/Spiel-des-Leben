@@ -126,7 +126,7 @@ class TkVisualizer:
 
 def run(
     size: int,
-    delay: float,
+    delay_ms: int,
     seed: int | None,
     steps: int | None,
     white_ratio: float,
@@ -136,6 +136,7 @@ def run(
     grid = create_grid(size, seed, white_ratio)
     generation = 0
     visualizer = TkVisualizer(size, window_size) if visualize else None
+    delay_seconds = max(0, delay_ms) / 1000
     try:
         while (steps is None or generation < steps) and (
             visualizer is None or visualizer.running
@@ -145,7 +146,7 @@ def run(
             if visualizer is not None:
                 visualizer.update(grid)
             print(f"Generation {generation}: white={white_cells} black={black_cells}", flush=True)
-            time.sleep(delay)
+            time.sleep(delay_seconds)
             grid = step(grid)
             generation += 1
     except KeyboardInterrupt:
@@ -159,9 +160,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--size", type=int, default=1024, help="Kantenlänge des Feldes")
     parser.add_argument(
         "--delay",
-        type=float,
-        default=1.0,
-        help="Sekunden zwischen den Generationen",
+        type=int,
+        default=500,
+        help="Millisekunden zwischen den Generationen",
     )
     parser.add_argument("--seed", type=int, default=None, help="Zufalls-Seed")
     parser.add_argument(
