@@ -96,15 +96,10 @@ class TkVisualizer:
         self.max_zoom = 8.0
         self.center_x = self.grid_size // 2
         self.center_y = self.grid_size // 2
-<<<<<<< codex/add-zoom-functionality-to-visualization
         self.view_size = self.grid_size
         self.last_zoom: float | None = None
         self.last_center: tuple[int, int] | None = None
         self.pan_anchor: tuple[int, int] | None = None
-=======
-        self.last_zoom: float | None = None
-        self.last_center: tuple[int, int] | None = None
->>>>>>> main
         self._configure(self.window_size, self.window_size)
         self.root.bind("<Configure>", self._on_configure)
         self.root.bind("<MouseWheel>", self._on_mousewheel)
@@ -112,11 +107,8 @@ class TkVisualizer:
         self.root.bind("<Button-5>", self._on_mousewheel)
         self.root.bind("+", lambda _event: self._change_zoom(1))
         self.root.bind("-", lambda _event: self._change_zoom(-1))
-<<<<<<< codex/add-zoom-functionality-to-visualization
         self.canvas.bind("<ButtonPress-1>", self._on_pan_start)
         self.canvas.bind("<B1-Motion>", self._on_pan_move)
-=======
->>>>>>> main
 
     def _on_configure(self, event: tk.Event) -> None:
         if event.width <= 1 or event.height <= 1:
@@ -133,10 +125,7 @@ class TkVisualizer:
             return
         self.display_pixels = canvas_size
         view_size = max(1, int(round(self.grid_size / self.zoom)))
-<<<<<<< codex/add-zoom-functionality-to-visualization
         self.view_size = view_size
-=======
->>>>>>> main
         half_view = view_size // 2
         view_start_x = max(0, min(self.grid_size - view_size, self.center_x - half_view))
         view_start_y = max(0, min(self.grid_size - view_size, self.center_y - half_view))
@@ -178,7 +167,6 @@ class TkVisualizer:
         self.zoom = new_zoom
         self._configure(self.display_pixels, self.display_pixels)
 
-<<<<<<< codex/add-zoom-functionality-to-visualization
     def _on_pan_start(self, event: tk.Event) -> None:
         self.pan_anchor = (event.x, event.y)
 
@@ -208,8 +196,6 @@ class TkVisualizer:
         self.center_y = max(min_center, min(max_center, new_center_y))
         self._configure(self.display_pixels, self.display_pixels)
 
-=======
->>>>>>> main
     def close(self) -> None:
         self.running = False
         self.root.destroy()
