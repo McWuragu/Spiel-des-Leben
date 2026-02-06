@@ -1,11 +1,17 @@
 import argparse
 import random
 import time
-from typing import List
+from typing import List, Sequence
 
 import tkinter as tk
 
+try:
+    import numpy as np
+except ImportError:  # pragma: no cover - optional dependency
+    np = None
+
 Grid = List[bytearray]
+GridLike = Sequence[Sequence[int]]
 
 
 def create_grid(size: int, seed: int | None = None, white_ratio: float = 0.5) -> Grid:
@@ -18,7 +24,7 @@ def create_grid(size: int, seed: int | None = None, white_ratio: float = 0.5) ->
     ]
 
 
-def count_white_neighbors(grid: Grid, x: int, y: int) -> int:
+def count_white_neighbors(grid: GridLike, x: int, y: int) -> int:
     size = len(grid)
     count = 0
     for dy in (-1, 0, 1):
@@ -32,7 +38,7 @@ def count_white_neighbors(grid: Grid, x: int, y: int) -> int:
     return count
 
 
-def step(grid: Grid) -> Grid:
+def step(grid: GridLike) -> Grid:
     size = len(grid)
     new_grid: Grid = [bytearray(size) for _ in range(size)]
     for y in range(size):
@@ -46,6 +52,26 @@ def step(grid: Grid) -> Grid:
             else:
                 new_row[x] = 0 if (white_neighbors <= 1 or white_neighbors > 3)  else 1
     return new_grid
+
+
+def step_numpy(grid: "np.ndarray") -> "np.ndarray":
+    if np is None:
+        raise RuntimeError("NumPy ist nicht verfügbar.")
+    padded = np.pad(grid, 1, mode="constant", constant_values=0)
+    neighbors = (
+        padded[:-2, :-2]
+        + padded[:-2, 1:-1]
+        + padded[:-2, 2:]
+        + padded[1:-1, :-2]
+        + padded[1:-1, 2:]
+        + padded[2:, :-2]
+        + padded[2:, 1:-1]
+        + padded[2:, 2:]
+    )
+    alive = grid == 1
+    born = neighbors == 3
+    survive = alive & ((neighbors == 2) | (neighbors == 3))
+    return (born | survive).astype(np.uint8)
 
 
 class TkVisualizer:
@@ -127,8 +153,17 @@ def run(
     steps: int | None,
     white_ratio: float,
     window_size: int,
+    backend: str,
 ) -> None:
-    grid = create_grid(size, seed, white_ratio)
+    use_numpy = backend == "numpy"
+    if use_numpy and np is None:
+        raise RuntimeError("NumPy-Backend gewählt, aber NumPy ist nicht installiert.")
+    if use_numpy:
+        grid = np.array(create_grid(size, seed, white_ratio), dtype=np.uint8)
+        step_fn = step_numpy
+    else:
+        grid = create_grid(size, seed, white_ratio)
+        step_fn = step
     generation = 0
     visualizer = TkVisualizer(size, window_size)
     delay_seconds = max(0, delay_ms) / 1000
@@ -137,7 +172,7 @@ def run(
             visualizer.update(grid)
             print(".", end="", flush=True)
             time.sleep(delay_seconds)
-            grid = step(grid)
+            grid = step_fn(grid)
             generation += 1
     except KeyboardInterrupt:
         print("Simulation stopped.")
@@ -173,6 +208,12 @@ def parse_args() -> argparse.Namespace:
         default=800,
         help="Fenstergröße der Visualisierung in Pixeln",
     )
+    parser.add_argument(
+        "--backend",
+        choices=("python", "numpy"),
+        default="python",
+        help="Berechnungs-Backend für den nächsten Schritt",
+    )
     return parser.parse_args()
 
 
@@ -185,6 +226,7 @@ def main() -> None:
         args.steps,
         args.white_ratio,
         args.window_size,
+        args.backend,
     )
 
 
