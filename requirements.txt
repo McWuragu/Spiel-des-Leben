@@ -1,1 +1,3 @@
-# This project uses only Python's standard library.
+# Core dependencies (standard library only).
+# Optional: install NumPy to use the faster "numpy" backend.
+numpy>=1.24
