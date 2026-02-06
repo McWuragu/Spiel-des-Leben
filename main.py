@@ -96,8 +96,15 @@ class TkVisualizer:
         self.max_zoom = 8.0
         self.center_x = self.grid_size // 2
         self.center_y = self.grid_size // 2
+<<<<<<< codex/add-zoom-functionality-to-visualization
+        self.view_size = self.grid_size
         self.last_zoom: float | None = None
         self.last_center: tuple[int, int] | None = None
+        self.pan_anchor: tuple[int, int] | None = None
+=======
+        self.last_zoom: float | None = None
+        self.last_center: tuple[int, int] | None = None
+>>>>>>> main
         self._configure(self.window_size, self.window_size)
         self.root.bind("<Configure>", self._on_configure)
         self.root.bind("<MouseWheel>", self._on_mousewheel)
@@ -105,6 +112,11 @@ class TkVisualizer:
         self.root.bind("<Button-5>", self._on_mousewheel)
         self.root.bind("+", lambda _event: self._change_zoom(1))
         self.root.bind("-", lambda _event: self._change_zoom(-1))
+<<<<<<< codex/add-zoom-functionality-to-visualization
+        self.canvas.bind("<ButtonPress-1>", self._on_pan_start)
+        self.canvas.bind("<B1-Motion>", self._on_pan_move)
+=======
+>>>>>>> main
 
     def _on_configure(self, event: tk.Event) -> None:
         if event.width <= 1 or event.height <= 1:
@@ -121,6 +133,10 @@ class TkVisualizer:
             return
         self.display_pixels = canvas_size
         view_size = max(1, int(round(self.grid_size / self.zoom)))
+<<<<<<< codex/add-zoom-functionality-to-visualization
+        self.view_size = view_size
+=======
+>>>>>>> main
         half_view = view_size // 2
         view_start_x = max(0, min(self.grid_size - view_size, self.center_x - half_view))
         view_start_y = max(0, min(self.grid_size - view_size, self.center_y - half_view))
@@ -162,6 +178,38 @@ class TkVisualizer:
         self.zoom = new_zoom
         self._configure(self.display_pixels, self.display_pixels)
 
+<<<<<<< codex/add-zoom-functionality-to-visualization
+    def _on_pan_start(self, event: tk.Event) -> None:
+        self.pan_anchor = (event.x, event.y)
+
+    def _on_pan_move(self, event: tk.Event) -> None:
+        if self.pan_anchor is None:
+            return
+        anchor_x, anchor_y = self.pan_anchor
+        delta_x = event.x - anchor_x
+        delta_y = event.y - anchor_y
+        self.pan_anchor = (event.x, event.y)
+        self._pan_by(delta_x, delta_y)
+
+    def _pan_by(self, delta_x: int, delta_y: int) -> None:
+        if self.display_pixels <= 0:
+            return
+        units_per_pixel = self.view_size / self.display_pixels
+        move_x = int(round(delta_x * units_per_pixel))
+        move_y = int(round(delta_y * units_per_pixel))
+        if move_x == 0 and move_y == 0:
+            return
+        new_center_x = self.center_x - move_x
+        new_center_y = self.center_y - move_y
+        half_view = self.view_size // 2
+        min_center = half_view
+        max_center = self.grid_size - (self.view_size - half_view)
+        self.center_x = max(min_center, min(max_center, new_center_x))
+        self.center_y = max(min_center, min(max_center, new_center_y))
+        self._configure(self.display_pixels, self.display_pixels)
+
+=======
+>>>>>>> main
     def close(self) -> None:
         self.running = False
         self.root.destroy()
