@@ -89,9 +89,22 @@ class TkVisualizer:
         self.image: tk.PhotoImage | None = None
         self.image_id: int | None = None
         self.display_pixels = 0
-        self.ranges: list[tuple[int, int]] = []
+        self.ranges_x: list[tuple[int, int]] = []
+        self.ranges_y: list[tuple[int, int]] = []
+        self.zoom = 1.0
+        self.min_zoom = 1.0
+        self.max_zoom = 8.0
+        self.center_x = self.grid_size // 2
+        self.center_y = self.grid_size // 2
+        self.last_zoom: float | None = None
+        self.last_center: tuple[int, int] | None = None
         self._configure(self.window_size, self.window_size)
         self.root.bind("<Configure>", self._on_configure)
+        self.root.bind("<MouseWheel>", self._on_mousewheel)
+        self.root.bind("<Button-4>", self._on_mousewheel)
+        self.root.bind("<Button-5>", self._on_mousewheel)
+        self.root.bind("+", lambda _event: self._change_zoom(1))
+        self.root.bind("-", lambda _event: self._change_zoom(-1))
 
     def _on_configure(self, event: tk.Event) -> None:
         if event.width <= 1 or event.height <= 1:
@@ -100,24 +113,54 @@ class TkVisualizer:
 
     def _configure(self, width: int, height: int) -> None:
         canvas_size = max(1, min(width, height))
-        if canvas_size == self.display_pixels:
+        if (
+            canvas_size == self.display_pixels
+            and self.last_zoom == self.zoom
+            and self.last_center == (self.center_x, self.center_y)
+        ):
             return
         self.display_pixels = canvas_size
-        ratio = self.grid_size / canvas_size
-        ranges: list[tuple[int, int]] = []
+        view_size = max(1, int(round(self.grid_size / self.zoom)))
+        half_view = view_size // 2
+        view_start_x = max(0, min(self.grid_size - view_size, self.center_x - half_view))
+        view_start_y = max(0, min(self.grid_size - view_size, self.center_y - half_view))
+        ratio = view_size / canvas_size
+        ranges_x: list[tuple[int, int]] = []
+        ranges_y: list[tuple[int, int]] = []
         for index in range(canvas_size):
             start = int(index * ratio)
             end = int((index + 1) * ratio)
             if end <= start:
-                end = min(start + 1, self.grid_size)
-            ranges.append((start, end))
-        self.ranges = ranges
+                end = min(start + 1, view_size)
+            ranges_x.append((start + view_start_x, end + view_start_x))
+            ranges_y.append((start + view_start_y, end + view_start_y))
+        self.ranges_x = ranges_x
+        self.ranges_y = ranges_y
+        self.last_zoom = self.zoom
+        self.last_center = (self.center_x, self.center_y)
         self.image = tk.PhotoImage(width=canvas_size, height=canvas_size)
         if self.image_id is None:
             self.image_id = self.canvas.create_image(0, 0, anchor="nw", image=self.image)
         else:
             self.canvas.itemconfigure(self.image_id, image=self.image)
         self.canvas.config(width=canvas_size, height=canvas_size)
+
+    def _on_mousewheel(self, event: tk.Event) -> None:
+        if hasattr(event, "delta") and event.delta:
+            direction = 1 if event.delta > 0 else -1
+        else:
+            direction = 1 if getattr(event, "num", None) == 4 else -1
+        self._change_zoom(direction)
+
+    def _change_zoom(self, direction: int) -> None:
+        if direction == 0:
+            return
+        new_zoom = self.zoom * (1.2 if direction > 0 else 1 / 1.2)
+        new_zoom = max(self.min_zoom, min(self.max_zoom, new_zoom))
+        if new_zoom == self.zoom:
+            return
+        self.zoom = new_zoom
+        self._configure(self.display_pixels, self.display_pixels)
 
     def close(self) -> None:
         self.running = False
@@ -127,12 +170,13 @@ class TkVisualizer:
         if not self.running or self.image is None:
             return
         display_pixels = self.display_pixels
-        ranges = self.ranges
+        ranges_x = self.ranges_x
+        ranges_y = self.ranges_y
         for y in range(display_pixels):
-            y_start, y_end = ranges[y]
+            y_start, y_end = ranges_y[y]
             row_colors = []
             for x in range(display_pixels):
-                x_start, x_end = ranges[x]
+                x_start, x_end = ranges_x[x]
                 white_count = 0
                 total = 0
                 for yy in range(y_start, y_end):
